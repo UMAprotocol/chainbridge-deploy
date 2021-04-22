@@ -36,8 +36,8 @@ const registerGenericResourceCmd = new Command("register-generic-resource")
         const bridgeInstance = new ethers.Contract(args.bridge, constants.ContractABIs.Bridge.abi, args.wallet);
 
         if (args.hash) {
-            args.deposit = getFunctionBytes(args.deposit)
-            args.execute = getFunctionBytes(args.execute)
+            if (args.execute !== EMPTY_SIG) args.execute = getFunctionBytes(args.execute);
+            if (args.deposit !== EMPTY_SIG) args.deposit = getFunctionBytes(args.deposit);
         }
 
         log(args,`Registering generic resource ID ${args.resourceId} with contract ${args.targetContract} on handler ${args.handler}`)
