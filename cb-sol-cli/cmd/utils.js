@@ -1,4 +1,6 @@
 const ethers = require('ethers');
+const { hexZeroPad, hexlify, keccak256, toUtf8Bytes, parseUnits } = ethers.utils;
+const AbiCoder = new ethers.utils.AbiCoder();
 const fs = require('fs');
 
 const setupParentArgs = async (args, parent) => {
@@ -11,8 +13,8 @@ const setupParentArgs = async (args, parent) => {
             chainId: Number(parent.networkId)
         });
     }
-    args.gasLimit = ethers.utils.hexlify(Number(parent.gasLimit))
-    args.gasPrice = ethers.utils.hexlify(Number(parent.gasPrice))
+    args.gasLimit = hexlify(Number(parent.gasLimit))
+    args.gasPrice = hexlify(Number(parent.gasPrice))
     if (!parent.jsonWallet) {
         args.wallet = new ethers.Wallet(parent.privateKey, args.provider);
     } else {
@@ -27,7 +29,7 @@ const splitCommaList = (str) => {
 }
 
 const getFunctionBytes = (sig) => {
-    return ethers.utils.keccak256(ethers.utils.hexlify(ethers.utils.toUtf8Bytes(sig))).substr(0, 10)
+    return keccak256(hexlify(toUtf8Bytes(sig))).substr(0, 10)
 }
 
 function sleep(ms) {
@@ -42,8 +44,34 @@ const waitForTx = async (provider, hash) => {
 }
 
 const expandDecimals = (amount, decimals = 18) => {
-    return ethers.utils.parseUnits(String(amount), decimals);
+    return parseUnits(String(amount), decimals);
 }
+
+// from: https://github.com/ethers-io/ethers.js/issues/207
+function stringToBytes32(text) {
+    let result = toUtf8Bytes(text)
+    if (result.length > 32) { throw new Error('String too long') }
+    result = hexlify(result);
+    while (result.length < 66) { result += '0'; }
+    if (result.length !== 66) { throw new Error("invalid web3 implicit bytes32"); }
+    return result;
+}
+
+const abiEncode = (valueTypes, values) => {
+    return AbiCoder.encode(valueTypes, values);
+};
+  
+const toHex = (numberOrBigNumberOrHexStringOrArrayish, padding) => {
+    return hexZeroPad(hexlify(numberOrBigNumberOrHexStringOrArrayish), padding);
+};
+
+const createGenericDepositData = hexMetaData => {
+    if (hexMetaData === null) {
+      return "0x" + toHex(0, 32).substr(2); // len(metaData) (32 bytes)
+    }
+    const hexMetaDataLength = hexMetaData.substr(2).length / 2;
+    return "0x" + toHex(hexMetaDataLength, 32).substr(2) + hexMetaData.substr(2);
+};
 
 const log = (args, msg) => console.log(`[${args.parent._name}/${args._name}] ${msg}`)
 
@@ -53,5 +81,9 @@ module.exports = {
     getFunctionBytes,
     waitForTx,
     log,
-    expandDecimals
+    expandDecimals,
+    stringToBytes32,
+    abiEncode,
+    toHex,
+    createGenericDepositData
 }

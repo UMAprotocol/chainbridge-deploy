@@ -21,6 +21,7 @@ const deployCmd = new Command("deploy")
     .option('--erc721', 'Deploy erc721 contract')
     .option('--centAsset', 'Deploy centrifuge asset contract')
     .option('--wetc', 'Deploy wrapped ETC Erc20 contract')
+    .option('--oracle', 'Deploy Mock Oracle contract')
     .option('--config', 'Logs the configuration based on the deployment', false)
     .action(async (args) => {
         await setupParentArgs(args, args.parent)
@@ -61,6 +62,10 @@ const deployCmd = new Command("deploy")
             }
             if (args.centAsset) {
                 await deployCentrifugeAssetStore(args);
+                deployed = true
+            }
+            if (args.oracle) {
+                await deployMockOracle(args);
                 deployed = true
             }
             if (args.wetc) {
@@ -131,6 +136,8 @@ Erc20:              ${args.erc20Contract ? args.erc20Contract : "Not Deployed"}
 Erc721:             ${args.erc721Contract ? args.erc721Contract : "Not Deployed"}
 ----------------------------------------------------------------
 Centrifuge Asset:   ${args.centrifugeAssetStoreContract ? args.centrifugeAssetStoreContract : "Not Deployed"}
+----------------------------------------------------------------
+MockOracle:         ${args.mockOracleContract ? args.mockOracleContract : "Not Deployed"}
 ----------------------------------------------------------------
 WETC:               ${args.WETCContract ? args.WETCContract : "Not Deployed"}
 ================================================================
@@ -204,6 +211,14 @@ async function deployCentrifugeAssetStore(args) {
     await contract.deployed();
     args.centrifugeAssetStoreContract = contract.address
     console.log("✓ CentrifugeAssetStore contract deployed")
+}
+
+async function deployMockOracle(args) {
+    const factory = new ethers.ContractFactory(constants.ContractABIs.MockOracle.abi, constants.ContractABIs.MockOracle.bytecode, args.wallet);
+    const contract = await factory.deploy({ gasPrice: args.gasPrice, gasLimit: args.gasLimit});
+    await contract.deployed();
+    args.mockOracleContract = contract.address
+    console.log("✓ MockOracle contract deployed")
 }
 
 async function deployWETC(args) {
