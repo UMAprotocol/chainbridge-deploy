@@ -39,7 +39,8 @@ const registerGenericResourceCmd = new Command("register-generic-resource")
             if (args.execute !== EMPTY_SIG) args.execute = getFunctionBytes(args.execute);
             if (args.deposit !== EMPTY_SIG) args.deposit = getFunctionBytes(args.deposit);
         }
-
+        log(args, `Deposit function signature: ${args.deposit}`)
+        log(args, `Execute function signature: ${args.execute}`)
         log(args,`Registering generic resource ID ${args.resourceId} with contract ${args.targetContract} on handler ${args.handler}`)
         const tx = await bridgeInstance.adminSetGenericResource(args.handler, args.resourceId, args.targetContract, args.deposit, args.execute, { gasPrice: args.gasPrice, gasLimit: args.gasLimit})
         await waitForTx(args.provider, tx.hash)
