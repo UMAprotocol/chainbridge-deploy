@@ -6,19 +6,15 @@ const {
     setupParentArgs, 
     waitForTx, 
     log, 
-    stringToBytes32, 
-    abiEncode, 
-    createGenericDepositData
+    stringToBytes32
 } = require("./utils")
 
 const requestPriceCmd = new Command("request-price")
-    .description("Initiates a bridged price request")
-    .option('--dest <id>', "Destination chain ID", 1)
+    .description("Initiates a bridged price request from sink to source oracle")
     .option('--time <value>', 'Request timestamp', Date.now())
     .option('--identifier <string>', 'Request identifier', "Test Identifier")
     .option('--ancillary <string>', 'Request ancillary data', "message: test ancillary data")
-    .option('--bridge <address>', 'Bridge contract address', constants.BRIDGE_ADDRESS)
-    .option('--resourceId <id>', 'ResourceID for request price', constants.ERC20_RESOURCEID)
+    .option('--sinkOracle <address>', 'Address for SinkOracle', constants.BRIDGE_ADDRESS)
     .action(async function (args) {
         await setupParentArgs(args, args.parent.parent)
         args.decimals = args.parent.decimals
@@ -26,21 +22,17 @@ const requestPriceCmd = new Command("request-price")
         const ancillaryData = stringToBytes32(args.ancillary);
 
         // Instances
-        const bridgeInstance = new ethers.Contract(args.bridge, constants.ContractABIs.Bridge.abi, args.wallet);
-        const depositData = createRequestPriceProposalData(args.time, identifier, ancillaryData)
-         log(args, `Constructed deposit:`)
-        log(args, `  Resource Id: ${args.resourceId}`)
+        const oracleInstance = new ethers.Contract(args.sinkOracle, constants.ContractABIs.SinkOracle.abi, args.wallet);
+        log(args, `Initiating price request:`)
         log(args, `  Identifier: ${identifier}`)
         log(args, `  Request Time: ${args.time}`)
         log(args, `  Ancillary Data: ${ancillaryData}`)
-        log(args, `  Raw: ${depositData}`)
-        log(args, `Creating deposit to initiate price request!`);
 
-        // Make the deposit
-        let tx = await bridgeInstance.deposit(
-            args.dest, // destination chain id
-            args.resourceId,
-            depositData,
+        // Requesting price should call Bridge.deposit()
+        let tx = await oracleInstance.requestPrice(
+            identifier,
+            args.time,
+            ancillaryData,
             { gasPrice: args.gasPrice, gasLimit: args.gasLimit}
         );
 
@@ -48,14 +40,14 @@ const requestPriceCmd = new Command("request-price")
     })
 
 const pushPriceCmd = new Command("push-price")
-    .description("Resolves a bridged price request and publishes a cross-chain price")
+    .description("Publishes a cross-chain price from source to sink")
     .option('--dest <id>', "Destination chain ID", 1)
     .option('--time <value>', 'Request timestamp', Date.now())
     .option('--identifier <string>', 'Request identifier', "Test Identifier")
     .option('--ancillary <string>', 'Request ancillary data', "message: test ancillary data")
     .option('--price <value>', 'Price to push', 666)
-    .option('--bridge <address>', 'Bridge contract address', constants.BRIDGE_ADDRESS)
-    .option('--resourceId <id>', 'ResourceID for request price', constants.ERC20_RESOURCEID)
+    .option('--sourceOracle <address>', 'Address for SourceOracle', constants.BRIDGE_ADDRESS)
+    .option('--mockOracle <address>', 'Address for MockOracle', constants.BRIDGE_ADDRESS)
     .action(async function (args) {
         await setupParentArgs(args, args.parent.parent)
         args.decimals = args.parent.decimals
@@ -63,43 +55,35 @@ const pushPriceCmd = new Command("push-price")
         const ancillaryData = stringToBytes32(args.ancillary);
 
         // Instances
-        const bridgeInstance = new ethers.Contract(args.bridge, constants.ContractABIs.Bridge.abi, args.wallet);
-        const depositData = createPushPriceData(args.time, identifier, ancillaryData, args.price)
-        log(args, `Constructed deposit:`)
-        log(args, `  Resource Id: ${args.resourceId}`)
+        const sourceOracle = new ethers.Contract(args.sourceOracle, constants.ContractABIs.SourceOracle.abi, args.wallet);
+        const mockOracle = new ethers.Contract(args.mockOracle, constants.ContractABIs.MockOracle.abi, args.wallet);
+
+        if (!(await mockOracle.hasPrice(identifier, args.time, ancillaryData))) {
+            log(args, `Resolving price on MockOracle:`)
+            let resolvePriceTx = await mockOracle.pushPrice(identifier, args.time, ancillaryData, args.price, { gasPrice: args.gasPrice, gasLimit: args.gasLimit})
+            await waitForTx(args.provider, resolvePriceTx.hash)
+            log(args, `Resolved new price: ${price}`)  
+        }
+
+        log(args, `Publishing price from MockOracle to SourceOracle:`)
         log(args, `  Identifier: ${identifier}`)
         log(args, `  Request Time: ${args.time}`)
         log(args, `  Ancillary Data: ${ancillaryData}`)
         log(args, `  Price: ${args.price}`)
-        log(args, `  Raw: ${depositData}`)
-        log(args, `Creating deposit to initiate price resolution!`);
 
         // Make the deposit
-        let tx = await bridgeInstance.deposit(
-            args.dest, // destination chain id
-            args.resourceId,
-            depositData,
+        let tx = await sourceOracle.publishPrice(
+            args.dest,
+            identifier,
+            args.time,
+            ancillaryData,
+            args.price,
             { gasPrice: args.gasPrice, gasLimit: args.gasLimit}
         );
 
         await waitForTx(args.provider, tx.hash)
     })
 
-const createPushPriceData = (time, identifier, ancillaryData, price) => {
-        const encodedMetaDataProposal = abiEncode(
-            ["bytes32", "uint256", "bytes", "int256"],
-            [identifier, time, ancillaryData, price]
-        );
-        return createGenericDepositData(encodedMetaDataProposal);
-    }
-
-const createRequestPriceProposalData = (time, identifier, ancillaryData) => {
-        const encodedMetaDataProposal = abiEncode(
-            ["bytes32", "uint256", "bytes"],
-            [identifier, time, ancillaryData]
-        );
-        return createGenericDepositData(encodedMetaDataProposal);
-    }
 
 const votingCmd = new Command("voting")
 votingCmd.addCommand(requestPriceCmd)

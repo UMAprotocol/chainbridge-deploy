@@ -73,6 +73,22 @@ const createGenericDepositData = hexMetaData => {
     return "0x" + toHex(hexMetaDataLength, 32).substr(2) + hexMetaData.substr(2);
 };
 
+const createPushPriceData = (time, identifier, ancillaryData, price) => {
+    const encodedMetaDataProposal = abiEncode(
+        ["bytes32", "uint256", "bytes", "int256"],
+        [identifier, time, ancillaryData, price]
+    );
+    return createGenericDepositData(encodedMetaDataProposal);
+}
+
+const createRequestPriceProposalData = (time, identifier, ancillaryData) => {
+    const encodedMetaDataProposal = abiEncode(
+        ["bytes32", "uint256", "bytes"],
+        [identifier, time, ancillaryData]
+    );
+    return createGenericDepositData(encodedMetaDataProposal);
+}
+
 const log = (args, msg) => console.log(`[${args.parent._name}/${args._name}] ${msg}`)
 
 module.exports = {
@@ -85,5 +101,7 @@ module.exports = {
     stringToBytes32,
     abiEncode,
     toHex,
-    createGenericDepositData
+    createGenericDepositData,
+    createPushPriceData,
+    createRequestPriceProposalData
 }
