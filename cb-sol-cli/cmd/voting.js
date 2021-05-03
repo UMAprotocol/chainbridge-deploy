@@ -63,13 +63,14 @@ const pushPriceCmd = new Command("push-price")
             let resolvePriceTx = await mockOracle.pushPrice(identifier, args.time, ancillaryData, args.price, { gasPrice: args.gasPrice, gasLimit: args.gasLimit})
             await waitForTx(args.provider, resolvePriceTx.hash)
             log(args, `Resolved new price: ${price}`)  
+        } else {
+            log(args, `Mock oracle already has a price, not using the input price: ${args.price}`)
         }
 
         log(args, `Publishing price from MockOracle to SourceOracle:`)
         log(args, `  Identifier: ${identifier}`)
         log(args, `  Request Time: ${args.time}`)
         log(args, `  Ancillary Data: ${ancillaryData}`)
-        log(args, `  Price: ${args.price}`)
 
         // Make the deposit
         let tx = await sourceOracle.publishPrice(
@@ -77,7 +78,6 @@ const pushPriceCmd = new Command("push-price")
             identifier,
             args.time,
             ancillaryData,
-            args.price,
             { gasPrice: args.gasPrice, gasLimit: args.gasLimit}
         );
 
