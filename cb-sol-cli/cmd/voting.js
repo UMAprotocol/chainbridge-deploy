@@ -62,12 +62,13 @@ const pushPriceCmd = new Command("push-price")
             log(args, `Resolving price on MockOracle:`)
             let resolvePriceTx = await mockOracle.pushPrice(identifier, args.time, ancillaryData, args.price, { gasPrice: args.gasPrice, gasLimit: args.gasLimit})
             await waitForTx(args.provider, resolvePriceTx.hash)
-            log(args, `Resolved new price: ${price}`)  
+            log(args, `Resolved new price: ${args.price}`)  
         } else {
             log(args, `Mock oracle already has a price, not using the input price: ${args.price}`)
         }
 
         log(args, `Publishing price from MockOracle to SourceOracle:`)
+        log(args, `  Destination Chain ID: ${args.dest}`)
         log(args, `  Identifier: ${identifier}`)
         log(args, `  Request Time: ${args.time}`)
         log(args, `  Ancillary Data: ${ancillaryData}`)
